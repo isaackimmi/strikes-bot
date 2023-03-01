@@ -1,0 +1,16 @@
+{
+  "name": "my-discord-bot",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "babel-node index.js"
+  },
+  "dependencies": {
+    "discord.js": "^12.5.3"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.16.0",
+    "@babel/core": "^7.21.0",
+    "@babel/node": "^7.20.7",
+    "@babel/preset-env": "^7.16.0"
+  }
+}
