@@ -5,7 +5,10 @@
     "start": "babel-node index.js"
   },
   "dependencies": {
-    "discord.js": "^12.5.3"
+    "@lyrafinance/lyra-js": "^0.0.25",
+    "discord.js": "^12.5.3",
+    "ethers": "^6.0.8",
+    "moment": "^2.29.4"
   },
   "devDependencies": {
     "@babel/cli": "^7.16.0",
