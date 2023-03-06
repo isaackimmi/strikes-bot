@@ -38,7 +38,7 @@ async function run() {
 // Event listeners
 client.on("ready", () => {
   console.log(`Logged in as ${client.user.tag}!`);
-  run();
+  //run();
 });
 
 client.on("message", async (message) => {
@@ -53,7 +53,7 @@ client.on("message", async (message) => {
 
   if (command === "getallstrikes") {
     const [underlying, expiry] = args;
-    const strikes = await getAllStrikes(underlying, expiry);
+    const strikes = await getAllStrikes(lyra, underlying, expiry);
 
     console.log(strikes);
     if (typeof strikes === "string") {

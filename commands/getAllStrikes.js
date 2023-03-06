@@ -1,9 +1,9 @@
-import Lyra from "@lyrafinance/lyra-js";
+//import Lyra from "@lyrafinance/lyra-js";
 import moment from "moment";
 
-const lyra = new Lyra();
+//const lyra = new Lyra();
 
-export const getAllStrikes = async (underlying, expiry) => {
+export const getAllStrikes = async (lyra, underlying, expiry) => {
   switch (underlying) {
     case "ETH":
       underlying = "sETH-sUSD";
