@@ -1,44 +1,35 @@
 import Discord from "discord.js";
 import Lyra from "@lyrafinance/lyra-js";
+import config from "./config.js";
 import { ping } from "./commands/ping.js";
 import { getAllStrikes } from "./commands/getAllStrikes.js";
-import config from "./config.js";
+import { help } from "./commands/help.js";
 
 const lyra = new Lyra();
 
 const client = new Discord.Client();
 
-async function run() {
-  const markets = await lyra.markets();
+function splitIntoChunks(text) {
+  const chunks = [];
 
-  //console.log(
-  //  markets[0].liveBoards().map((board) => ({
-  //    id: board.id,
-  //    expiryTimestamp: board.expiryTimestamp,
-  //    strikes: board.strikes().map((strike) => ({
-  //      id: strike.id,
-  //      strikePrice: strike.strikePrice,
-  //    })),
-  //  }))
-  //  //markets.map((market) => ({
-  //  //  address: market.address,
-  //  //  name: market.name,
-  //  //  expiries: market.liveBoards().map((board) => ({
-  //  //    id: board.id,
-  //  //    expiryTimestamp: board.expiryTimestamp,
-  //  //    strikes: board.strikes().map((strike) => ({
-  //  //      id: strike.id,
-  //  //      strikePrice: strike.strikePrice,
-  //  //    })),
-  //  //  })),
-  //  //}))
-  //);
+  for (let i = 0; i < text.length; i += 2000) {
+    chunks.push(text.substring(i, i + 2000));
+  }
+
+  return chunks;
+}
+
+async function sendFormattedStrikes(channel, formattedStrikes) {
+  const chunks = splitIntoChunks(formattedStrikes);
+
+  for (const chunk of chunks) {
+    await channel.send(chunk);
+  }
 }
 
 // Event listeners
 client.on("ready", () => {
   console.log(`Logged in as ${client.user.tag}!`);
-  //run();
 });
 
 client.on("message", async (message) => {
@@ -56,17 +47,24 @@ client.on("message", async (message) => {
     const strikes = await getAllStrikes(lyra, underlying, expiry);
 
     console.log(strikes);
-    if (typeof strikes === "string") {
-      message.reply(strikes);
-    } else {
-      const formattedStrikes = strikes
-        .map(
-          (strike) =>
-            `${strike.strikePrice}: Call Liquidity = ${strike.callLiquidity}, Put Liquidity = ${strike.putLiquidity}`
-        )
-        .join("\n");
-      message.reply(`Strikes:\n${formattedStrikes}`);
-    }
+
+    const formattedStrikes = strikes
+      .map(
+        (strike) =>
+          `\nStrike ID: ${strike.id}:\n` +
+          `Strike Price: ${strike.strikePrice}\n` +
+          `Skew = ${strike.skew}\n` +
+          `IV = ${strike.iv}\n` +
+          `Volume = ${strike.vol}\n` +
+          `Vega = ${strike.vega}\n` +
+          `Gamma = ${strike.gamma}\n` +
+          `Is Delta In Range = ${strike.isDeltaInRange}\n` +
+          `Open Interest = ${strike.openInterest}\n`
+      )
+      .join("");
+
+    await sendFormattedStrikes(message.channel, formattedStrikes);
+  } else if (command === "help") {
   }
 });
 

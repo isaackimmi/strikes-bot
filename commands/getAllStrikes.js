@@ -11,22 +11,21 @@ export const getAllStrikes = async (lyra, underlying, expiry) => {
     case "BTC":
       underlying = "sBTC-sUSD";
       break;
-    case "ETH":
+    case "SOL":
       underlying = "sSOL-sUSD";
       break;
     default:
       break;
   }
-  //  console.log(lyra.markets());
-  //  console.log(underlying);
-  //  console.log(moment(expiry).unix());
 
   expiry = moment(expiry).unix();
+
   const markets = await lyra.markets();
 
   const market = markets.find(
     (market) => market.name.toLowerCase() === underlying.toLowerCase()
   );
+
   if (!market) {
     return "Invalid underlying";
   }
@@ -34,6 +33,7 @@ export const getAllStrikes = async (lyra, underlying, expiry) => {
   const board = market
     .liveBoards()
     .find((board) => board.expiryTimestamp === expiry);
+
   if (!board) {
     return "Invalid expiry";
   }
@@ -44,8 +44,13 @@ export const getAllStrikes = async (lyra, underlying, expiry) => {
   const strikes = board.strikes().map((strike) => ({
     id: strike.id,
     strikePrice: strike.strikePrice,
-    //callLiquidity: strike.call.liquidity(),
-    //putLiquidity: strike.put.liquidity(),
+    skew: strike.skew,
+    iv: strike.iv,
+    vol: ((strike.skew / strike.iv) * 100).toFixed(2) + "%",
+    vega: strike.vega,
+    gamma: strike.gamma,
+    isDeltaInRange: strike.isDeltaInRange,
+    openInterest: strike.openInterest,
   }));
 
   console.log(strikes);
