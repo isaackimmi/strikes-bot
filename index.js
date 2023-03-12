@@ -1,9 +1,8 @@
 import Discord from "discord.js";
 import Lyra from "@lyrafinance/lyra-js";
 import config from "./config.js";
-import { ping } from "./commands/ping.js";
 import { getAllStrikes } from "./commands/getAllStrikes.js";
-import { help } from "./commands/help.js";
+import { whatDaoFuck } from "./commands/whatDaoFuck.js";
 
 const lyra = new Lyra();
 
@@ -19,8 +18,8 @@ function splitIntoChunks(text) {
   return chunks;
 }
 
-async function sendFormattedStrikes(channel, formattedStrikes) {
-  const chunks = splitIntoChunks(formattedStrikes);
+async function sendFormattedStrikes(channel, message) {
+  const chunks = splitIntoChunks(message);
 
   for (const chunk of chunks) {
     await channel.send(chunk);
@@ -28,8 +27,11 @@ async function sendFormattedStrikes(channel, formattedStrikes) {
 }
 
 // Event listeners
-client.on("ready", () => {
+client.on("ready", async () => {
   console.log(`Logged in as ${client.user.tag}!`);
+  //const market = await lyra.market("eth");
+
+  //console.log(market.liveBoards()[1]);
 });
 
 client.on("message", async (message) => {
@@ -38,27 +40,20 @@ client.on("message", async (message) => {
   const args = message.content.slice(config.prefix.length).trim().split(/ +/);
   const command = args.shift().toLowerCase();
 
-  //if (command === "ping") {
-  //  ping.execute(client, message, args);
-  //}
-
   if (command === "getallstrikes") {
     const [underlying, expiry] = args;
-    const strikes = await getAllStrikes(lyra, underlying, expiry);
 
-    console.log(strikes);
+    const strikes = await getAllStrikes(lyra, underlying, expiry);
 
     const formattedStrikes = strikes
       .map(
         (strike) =>
-          `\nStrike ID: ${strike.id}:\n` +
-          `Strike Price: ${strike.strikePrice}\n` +
+          `\nStrike Price: $${strike.strikePrice}\n` +
           `Skew = ${strike.skew}\n` +
           `IV = ${strike.iv}\n` +
-          `Volume = ${strike.vol}\n` +
+          `Volatility = ${strike.vol}\n` +
           `Vega = ${strike.vega}\n` +
           `Gamma = ${strike.gamma}\n` +
-          `Is Delta In Range = ${strike.isDeltaInRange}\n` +
           `Open Interest = ${strike.openInterest}\n`
       )
       .join("");

@@ -1,29 +1,37 @@
-//import Lyra from "@lyrafinance/lyra-js";
 import moment from "moment";
-
-//const lyra = new Lyra();
+import { hasDST } from "../utils/hasDST";
 
 export const getAllStrikes = async (lyra, underlying, expiry) => {
+  let formattedUnderlying;
+  const checkExpiry = new Date(expiry);
+  let epochExpiry = moment(expiry);
+  let epochExpiryDST;
+
   switch (underlying) {
     case "ETH":
-      underlying = "sETH-sUSD";
+      formattedUnderlying = "sETH-sUSD";
       break;
     case "BTC":
-      underlying = "sBTC-sUSD";
+      formattedUnderlying = "sBTC-sUSD";
       break;
     case "SOL":
-      underlying = "sSOL-sUSD";
+      formattedUnderlying = "sSOL-sUSD";
       break;
     default:
       break;
   }
 
-  expiry = moment(expiry).unix();
+  if (hasDST(checkExpiry)) {
+    epochExpiryDST = epochExpiry.clone().add(1, "h");
+    epochExpiry = epochExpiryDST.unix();
+  } else {
+    epochExpiry = epochExpiry.unix();
+  }
 
   const markets = await lyra.markets();
 
   const market = markets.find(
-    (market) => market.name.toLowerCase() === underlying.toLowerCase()
+    (market) => market.name.toLowerCase() === formattedUnderlying.toLowerCase()
   );
 
   if (!market) {
@@ -32,27 +40,37 @@ export const getAllStrikes = async (lyra, underlying, expiry) => {
 
   const board = market
     .liveBoards()
-    .find((board) => board.expiryTimestamp === expiry);
+    .find((board) => board.expiryTimestamp === epochExpiry);
 
   if (!board) {
     return "Invalid expiry";
   }
 
-  console.log(board);
+  // Filter out strikes where isDeltaInRange is false
+  const filteredStrikes = board
+    .strikes()
+    .filter((strike) => strike.isDeltaInRange);
 
-  console.log(board);
-  const strikes = board.strikes().map((strike) => ({
-    id: strike.id,
-    strikePrice: strike.strikePrice,
-    skew: strike.skew,
-    iv: strike.iv,
-    vol: ((strike.skew / strike.iv) * 100).toFixed(2) + "%",
-    vega: strike.vega,
-    gamma: strike.gamma,
+  // Map strikes to desired format
+  const formattedStrikes = filteredStrikes.map((strike) => ({
+    strikePrice: strike.strikePrice / 1e18,
+    skew: (strike.skew / 1e18).toFixed(3),
+    iv: ((strike.iv / 1e18) * 100).toFixed(2) + "%",
+    vol: ((strike.skew / 1e18) * (strike.iv / 1e18) * 100).toFixed(2) + "%",
+    vega: (strike.vega / 1e18).toFixed(3),
+    gamma: (strike.gamma / 1e18).toFixed(3),
     isDeltaInRange: strike.isDeltaInRange,
     openInterest: strike.openInterest,
+    call: strike.call(),
+    put: strike.put(),
   }));
 
-  console.log(strikes);
-  return strikes;
+  //console.log(formattedStrikes[0].put);
+
+  // Sort strikes based on strike price
+  const sortedStrikes = formattedStrikes.sort(
+    (a, b) => a.strikePrice - b.strikePrice
+  );
+
+  return sortedStrikes;
 };
