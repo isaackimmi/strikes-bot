@@ -5,9 +5,11 @@
     "start": "babel-node index.js"
   },
   "dependencies": {
+    "@ethersproject/bignumber": "^5.7.0",
     "@lyrafinance/lyra-js": "^0.0.25",
+    "bignumber.js": "^9.1.1",
     "discord.js": "^12.5.3",
-    "ethers": "^6.0.8",
+    "ethers": "^6.1.0",
     "moment": "^2.29.4"
   },
   "devDependencies": {

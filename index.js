@@ -1,10 +1,9 @@
 import Discord from "discord.js";
 import Lyra from "@lyrafinance/lyra-js";
+
 import config from "./config.js";
 import { getAllStrikes } from "./commands/getAllStrikes.js";
-import { whatDaoFuck } from "./commands/whatDaoFuck.js";
-
-const lyra = new Lyra();
+import { whatDaoIDo } from "./commands/whatDaoIDo.js";
 
 const client = new Discord.Client();
 
@@ -31,7 +30,7 @@ client.on("ready", async () => {
   console.log(`Logged in as ${client.user.tag}!`);
   //const market = await lyra.market("eth");
 
-  //console.log(market.liveBoards()[1]);
+  //console.log(market.liveBoards());
 });
 
 client.on("message", async (message) => {
@@ -40,10 +39,41 @@ client.on("message", async (message) => {
   const args = message.content.slice(config.prefix.length).trim().split(/ +/);
   const command = args.shift().toLowerCase();
 
-  if (command === "getallstrikes") {
-    const [underlying, expiry] = args;
+  console.log(args);
 
-    const strikes = await getAllStrikes(lyra, underlying, expiry);
+  if (command === "getallstrikes") {
+    // Buy/Sell
+    if (args[3].toLowerCase() === "buy") {
+      args[3] = true;
+    } else {
+      args[3] = false;
+    }
+
+    // Call/Put
+    if (args[4].toLowerCase() === "call") {
+      args[4] = true;
+    } else {
+      args[4] = false;
+    }
+
+    const [underlying, expiry, network, isBuy, isCall] = args;
+
+    let lyra;
+
+    if (network === "OP") {
+      lyra = new Lyra(config.opChainID);
+    } else if (network === "ARB") {
+      lyra = new Lyra(config.arbChainID);
+    }
+
+    const strikes = await getAllStrikes(
+      lyra,
+      underlying.toUpperCase(),
+      expiry,
+      network,
+      isBuy,
+      isCall
+    );
 
     const formattedStrikes = strikes
       .map(
@@ -54,7 +84,11 @@ client.on("message", async (message) => {
           `Volatility = ${strike.vol}\n` +
           `Vega = ${strike.vega}\n` +
           `Gamma = ${strike.gamma}\n` +
-          `Open Interest = ${strike.openInterest}\n`
+          `Open Interest = ${strike.openInterest}\n` +
+          `Delta = ${strike.delta}\n` +
+          `Theta = ${strike.theta}\n` +
+          `Rho = ${strike.rho}\n` +
+          `Break Even = ${strike.breakEven}\n`
       )
       .join("");
 
