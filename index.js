@@ -6,6 +6,7 @@ import { getAllStrikes } from "./commands/getAllStrikes.js";
 import { whatDaoIDo } from "./commands/whatDaoIDo.js";
 
 const client = new Discord.Client();
+let lyra;
 
 function splitIntoChunks(text) {
   const chunks = [];
@@ -39,8 +40,6 @@ client.on("message", async (message) => {
   const args = message.content.slice(config.prefix.length).trim().split(/ +/);
   const command = args.shift().toLowerCase();
 
-  console.log(args);
-
   if (command === "getallstrikes") {
     // Buy/Sell
     if (args[3].toLowerCase() === "buy") {
@@ -58,8 +57,6 @@ client.on("message", async (message) => {
 
     const [underlying, expiry, network, isBuy, isCall] = args;
 
-    let lyra;
-
     if (network === "OP") {
       lyra = new Lyra(config.opChainID);
     } else if (network === "ARB") {
@@ -75,20 +72,24 @@ client.on("message", async (message) => {
       isCall
     );
 
+    console.log(strikes);
+
     const formattedStrikes = strikes
       .map(
         (strike) =>
           `\nStrike Price: $${strike.strikePrice}\n` +
+          `Price Per Option = $${strike.pricePerOption}\n` +
+          `Break Even = $${strike.breakEven}\n` +
+          `To Break Even = ${strike.toBreakEven}\n` +
+          `Open Interest = ${strike.openInterest}\n` +
           `Skew = ${strike.skew}\n` +
-          `IV = ${strike.iv}\n` +
+          `Base IV = ${strike.baseIv}\n` +
           `Volatility = ${strike.vol}\n` +
           `Vega = ${strike.vega}\n` +
           `Gamma = ${strike.gamma}\n` +
-          `Open Interest = ${strike.openInterest}\n` +
           `Delta = ${strike.delta}\n` +
           `Theta = ${strike.theta}\n` +
-          `Rho = ${strike.rho}\n` +
-          `Break Even = ${strike.breakEven}\n`
+          `Rho = ${strike.rho}\n`
       )
       .join("");
 

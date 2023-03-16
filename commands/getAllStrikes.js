@@ -1,7 +1,7 @@
 import moment from "moment";
-import { BigNumber } from "@ethersproject/bignumber";
-
-import { hasDST } from "../utils/hasDST";
+import { formatUnderlying } from "../utils/formatUnderlying";
+import { CONTRACT_SIZE, UNIT } from "../constants";
+import { addDST } from "../utils/addDST";
 
 export const getAllStrikes = async (
   lyra,
@@ -11,44 +11,9 @@ export const getAllStrikes = async (
   isBuy,
   isCall
 ) => {
-  let formattedUnderlying;
-  const checkExpiry = new Date(expiry);
-  let epochExpiry = moment(expiry);
-  let epochExpiryDST;
+  const formattedUnderlying = formatUnderlying(network, underlying);
 
-  if (network.toUpperCase() === "OP") {
-    switch (underlying) {
-      case "ETH":
-        formattedUnderlying = "sETH-sUSD";
-        break;
-      case "BTC":
-        formattedUnderlying = "sBTC-sUSD";
-        break;
-      case "SOL":
-        formattedUnderlying = "sSOL-sUSD";
-        break;
-      default:
-        break;
-    }
-  } else if (network.toUpperCase() === "ARB") {
-    switch (underlying) {
-      case "ETH":
-        formattedUnderlying = "ETH-USDC";
-        break;
-      case "BTC":
-        formattedUnderlying = "WBTC-USDC";
-        break;
-      default:
-        break;
-    }
-  }
-
-  if (hasDST(checkExpiry)) {
-    epochExpiryDST = epochExpiry.clone().add(1, "h");
-    epochExpiry = epochExpiryDST.unix();
-  } else {
-    epochExpiry = epochExpiry.unix();
-  }
+  const epochExpiry = addDST(new Date(expiry), expiry);
 
   const markets = await lyra.markets();
 
@@ -73,48 +38,35 @@ export const getAllStrikes = async (
     .strikes()
     .filter((strike) => strike.isDeltaInRange);
 
-  let filteredOptions;
-
-  //console.log(filteredStrikes[0].call());
-
-  filteredOptions = filteredStrikes
-    .map((strike) => {
-      return strike.call();
-    })
-    .filter((option) => {
-      return option.isCall === true;
-    });
-
-  // Map strikes to desired format
   const formattedStrikes = await Promise.all(
-    filteredOptions.map(async (option) => {
-      const size = BigNumber.from("12345678901234567890");
-
-      // USE quoteAllSync INSTEAD OF QUOTE.
-      //const quote = await option.quote(isBuy, size);
-
-      const quote = await option.quoteAllSync(size);
+    filteredStrikes.map(async (strike) => {
+      const quote = await strike.quote(isCall, isBuy, CONTRACT_SIZE, {
+        iterations: 3,
+      });
 
       // extract the data u need out of quote.
+
+      // OPEN INTERESET IS CALCULATED LIKE THIS:
+      // const openInterest = option.longOpenInterest.add(option.shortOpenInterest).mul(option.market().spotPrice).div(UNIT)
+      const option = strike.option(isCall);
       return {
-        strikePrice: (option.strike().strikePrice / 1e18).toFixed(0),
-        skew: (option.strike().skew / 1e18).toFixed(3),
-        iv: (option.strike().iv / 1e18) * 100 + "%",
-        vol:
-          (
-            (option.strike().skew / 1e18) *
-            (option.strike().iv / 1e18) *
-            100
-          ).toFixed(2) + "%",
-        vega: (option.strike().vega / 1e18).toFixed(3),
-        gamma: (option.strike().gamma / 1e18).toFixed(3),
-        isDeltaInRange: option.isDeltaInRange,
-        openInterest: option.strike().openInterest / 1e18,
-        delta: (option.delta / 1e18).toFixed(3),
-        theta: (option.theta / 1e18).toFixed(3),
-        rho: (option.rho / 1e18).toFixed(3),
+        strikePrice: (strike.strikePrice / 1e18).toFixed(0),
         breakEven: (quote.breakEven / 1e18).toFixed(2),
         toBreakEven: (quote.toBreakEven / 1e18).toFixed(2),
+        pricePerOption: (quote.pricePerOption / 1e18).toFixed(2),
+        openInterest: option.longOpenInterest
+          .add(option.shortOpenInterest)
+          .mul(option.market().spotPrice)
+          .div(UNIT),
+        skew: (strike.skew / 1e18).toFixed(3),
+        baseIv:
+          ((quote.fairIv / 1e18 / (strike.skew / 1e18)) * 100).toFixed(2) + "%",
+        vol: ((quote.iv / 1e18) * 100).toFixed(1) + "%",
+        vega: (quote.greeks.vega / 1e18).toFixed(3),
+        gamma: (quote.greeks.gamma / 1e18).toFixed(3),
+        delta: (quote.greeks.delta / 1e18).toFixed(3),
+        theta: (quote.greeks.theta / 1e18).toFixed(3),
+        rho: (quote.greeks.rho / 1e18).toFixed(3),
       };
     })
   );
