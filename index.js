@@ -1,14 +1,16 @@
 import Discord from "discord.js";
-import Lyra from "@lyrafinance/lyra-js";
+import Lyra, { Chain } from "@lyrafinance/lyra-js";
+import { BigNumber } from "@ethersproject/bignumber";
 
 import config from "./config.js";
 import { getAllStrikes } from "./commands/getAllStrikes.js";
 import { whatDaoIDo } from "./commands/whatDaoIDo.js";
+import { formatTruncatedUSD } from "./utils/formatTruncatedUSD.js";
 
 const client = new Discord.Client();
 let lyra;
 
-function splitIntoChunks(text) {
+const splitIntoChunks = (text) => {
   const chunks = [];
 
   for (let i = 0; i < text.length; i += 2000) {
@@ -16,22 +18,22 @@ function splitIntoChunks(text) {
   }
 
   return chunks;
-}
-
-async function sendFormattedStrikes(channel, message) {
+};
+const sendFormattedStrikes = async (channel, message) => {
   const chunks = splitIntoChunks(message);
 
   for (const chunk of chunks) {
     await channel.send(chunk);
   }
-}
+};
 
 // Event listeners
 client.on("ready", async () => {
   console.log(`Logged in as ${client.user.tag}!`);
+  //const lyra = new Lyra("optimism");
   //const market = await lyra.market("eth");
 
-  //console.log(market.liveBoards());
+  //console.log(market);
 });
 
 client.on("message", async (message) => {
@@ -58,9 +60,9 @@ client.on("message", async (message) => {
     const [underlying, expiry, network, isBuy, isCall] = args;
 
     if (network === "OP") {
-      lyra = new Lyra(config.opChainID);
+      lyra = new Lyra(Chain.Optimism);
     } else if (network === "ARB") {
-      lyra = new Lyra(config.arbChainID);
+      lyra = new Lyra(Chain.Arbitrum);
     }
 
     const strikes = await getAllStrikes(
@@ -72,8 +74,6 @@ client.on("message", async (message) => {
       isCall
     );
 
-    console.log(strikes);
-
     const formattedStrikes = strikes
       .map(
         (strike) =>
@@ -81,7 +81,11 @@ client.on("message", async (message) => {
           `Price Per Option = $${strike.pricePerOption}\n` +
           `Break Even = $${strike.breakEven}\n` +
           `To Break Even = ${strike.toBreakEven}\n` +
-          `Open Interest = ${strike.openInterest}\n` +
+          `Open Interest = ${
+            strike.openInterest.gt(0)
+              ? formatTruncatedUSD(strike.openInterest)
+              : "-"
+          }\n` +
           `Skew = ${strike.skew}\n` +
           `Base IV = ${strike.baseIv}\n` +
           `Volatility = ${strike.vol}\n` +
@@ -94,7 +98,12 @@ client.on("message", async (message) => {
       .join("");
 
     await sendFormattedStrikes(message.channel, formattedStrikes);
-  } else if (command === "help") {
+  } else if (command === "whatDaoIDo") {
+  } else if (command === "displayliquidity") {
+  } else {
+    await message.channel.send(
+      "Invalid command. To see all available commands type !whatDaoIDo"
+    );
   }
 });
 
