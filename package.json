@@ -10,6 +10,7 @@
     "bignumber.js": "^9.1.1",
     "discord.js": "^12.5.3",
     "ethers": "^6.1.0",
+    "lyra-js": "^2.0.4",
     "moment": "^2.29.4"
   },
   "devDependencies": {

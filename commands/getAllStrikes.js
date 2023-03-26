@@ -1,7 +1,11 @@
 import moment from "moment";
 import { formatUnderlying } from "../utils/formatUnderlying";
+import { BigNumber } from "@ethersproject/bignumber";
+import { parseUnits } from "@ethersproject/units";
 import { CONTRACT_SIZE, UNIT } from "../constants";
 import { addDST } from "../utils/addDST";
+import toBigNumber from "../utils/toBigNumber";
+import { getAvailableLiquidity } from "./getAvailableLiquidity";
 
 export const getAllStrikes = async (
   lyra,
@@ -9,7 +13,8 @@ export const getAllStrikes = async (
   expiry,
   network,
   isBuy,
-  isCall
+  isCall,
+  slippage
 ) => {
   const formattedUnderlying = formatUnderlying(network, underlying);
 
@@ -44,11 +49,34 @@ export const getAllStrikes = async (
         iterations: 3,
       });
 
+      // Is this correct???
+      const baseIv = strike.board().baseIv;
+      const option = strike.option(isCall);
+
+      //console.log(bigNumberSlippage);
+
+      const bigNumberSlippage = parseUnits(slippage, 18);
+
+      //const bigNumberValue = BigNumber.from("0.01");
+      //console.log(bigNumberSlippage); // BigNumber { _hex: '0x9', _isBigNumber: true }
+
+      const availableLiquidity = await getAvailableLiquidity(
+        bigNumberSlippage,
+        strike.market().spotPrice,
+        option,
+        strike.skew,
+        baseIv
+      );
+
+      console.log(availableLiquidity);
+
+      //console.log(availableLiquidity);
+
       // extract the data u need out of quote.
 
       // OPEN INTERESET IS CALCULATED LIKE THIS:
       // const openInterest = option.longOpenInterest.add(option.shortOpenInterest).mul(option.market().spotPrice).div(UNIT)
-      const option = strike.option(isCall);
+
       return {
         strikePrice: (strike.strikePrice / 1e18).toFixed(0),
         breakEven: (quote.breakEven / 1e18).toFixed(2),
@@ -67,6 +95,7 @@ export const getAllStrikes = async (
         delta: (quote.greeks.delta / 1e18).toFixed(3),
         theta: (quote.greeks.theta / 1e18).toFixed(3),
         rho: (quote.greeks.rho / 1e18).toFixed(3),
+        availableLiquidity: (availableLiquidity / 1e18).toFixed(3),
       };
     })
   );

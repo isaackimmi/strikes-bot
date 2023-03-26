@@ -33,7 +33,7 @@ client.on("ready", async () => {
   //const lyra = new Lyra("optimism");
   //const market = await lyra.market("eth");
 
-  //console.log(market);
+  //console.log(market.spotPrice);
 });
 
 client.on("message", async (message) => {
@@ -57,7 +57,7 @@ client.on("message", async (message) => {
       args[4] = false;
     }
 
-    const [underlying, expiry, network, isBuy, isCall] = args;
+    const [underlying, expiry, network, isBuy, isCall, slippage] = args;
 
     if (network === "OP") {
       lyra = new Lyra(Chain.Optimism);
@@ -71,7 +71,8 @@ client.on("message", async (message) => {
       expiry,
       network,
       isBuy,
-      isCall
+      isCall,
+      slippage
     );
 
     const formattedStrikes = strikes
@@ -93,13 +94,13 @@ client.on("message", async (message) => {
           `Gamma = ${strike.gamma}\n` +
           `Delta = ${strike.delta}\n` +
           `Theta = ${strike.theta}\n` +
-          `Rho = ${strike.rho}\n`
+          `Rho = ${strike.rho}\n` +
+          `Available Liquidity = ${strike.availableLiquidity}\n`
       )
       .join("");
 
     await sendFormattedStrikes(message.channel, formattedStrikes);
   } else if (command === "whatDaoIDo") {
-  } else if (command === "displayliquidity") {
   } else {
     await message.channel.send(
       "Invalid command. To see all available commands type !whatDaoIDo"

@@ -2293,6 +2293,11 @@
   dependencies:
     "yallist" "^3.0.2"
 
+"lyra-js@^2.0.4":
+  "integrity" "sha512-mq3O1JGiIfjIBUOMHzomo4K8UJWFyTiypgTgh0ljKxKYnGqHliPxMWAMAzqGWfu4AdF/bSYl3HY9cT1l2a7LKQ=="
+  "resolved" "https://registry.npmjs.org/lyra-js/-/lyra-js-2.0.4.tgz"
+  "version" "2.0.4"
+
 "make-dir@^2.0.0", "make-dir@^2.1.0":
   "integrity" "sha512-LS9X+dc8KLxXCb8dni79fLIIUA5VyZoyjSMCwTluaXA0o27cCK0bhXkpgw+sTXVpPy/lSO57ilRixqk0vDmtRA=="
   "resolved" "https://registry.npmjs.org/make-dir/-/make-dir-2.1.0.tgz"
