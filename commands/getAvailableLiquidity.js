@@ -48,9 +48,16 @@ export const getAvailableLiquidity = async (
     iterations++;
   }
 
-  if (availableLiquidity.length === 0) {
+  const maxSpending = spotPrice.mul(maxOptions).mul(slippage).div(PRECISION);
+  const filteredLiquidity = availableLiquidity.filter((liquidity) =>
+    liquidity.lte(maxSpending)
+  );
+
+  console.log(filteredLiquidity);
+
+  if (filteredLiquidity.length === 0) {
     throw new Error("No available liquidity found");
   }
 
-  return availableLiquidity;
+  return filteredLiquidity;
 };

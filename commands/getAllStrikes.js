@@ -68,7 +68,7 @@ export const getAllStrikes = async (
         baseIv
       );
 
-      console.log(availableLiquidity);
+      //console.log(availableLiquidity);
 
       //console.log(availableLiquidity);
 
