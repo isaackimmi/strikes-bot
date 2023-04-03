@@ -1,4 +1,5 @@
-import { BigNumber } from "@ethersproject/bignumber";
+// From lyra-finance/interface
+
 import { formatUnits } from "@ethersproject/units";
 
 export default function fromBigNumber(number, decimals = 18) {

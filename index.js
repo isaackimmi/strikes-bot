@@ -1,6 +1,5 @@
 import Discord from "discord.js";
 import Lyra, { Chain } from "@lyrafinance/lyra-js";
-import { BigNumber } from "@ethersproject/bignumber";
 
 import config from "./config.js";
 import { getAllStrikes } from "./commands/getAllStrikes.js";
@@ -65,6 +64,8 @@ client.on("message", async (message) => {
       lyra = new Lyra(Chain.Arbitrum);
     }
 
+    // ADD CODE HERE
+
     const strikes = await getAllStrikes(
       lyra,
       underlying.toUpperCase(),
@@ -95,7 +96,7 @@ client.on("message", async (message) => {
           `Delta = ${strike.delta}\n` +
           `Theta = ${strike.theta}\n` +
           `Rho = ${strike.rho}\n` +
-          `Available Liquidity = ${strike.availableLiquidity}\n`
+          `Available Liquidity = ${strike.availableLiquidity} options\n`
       )
       .join("");
 

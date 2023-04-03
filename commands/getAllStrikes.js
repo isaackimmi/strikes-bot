@@ -1,11 +1,7 @@
-import moment from "moment";
 import { formatUnderlying } from "../utils/formatUnderlying";
-import { BigNumber } from "@ethersproject/bignumber";
-import { parseUnits } from "@ethersproject/units";
 import { CONTRACT_SIZE, UNIT } from "../constants";
 import { addDST } from "../utils/addDST";
-import toBigNumber from "../utils/toBigNumber";
-import { getAvailableLiquidity } from "./getAvailableLiquidity";
+import { calculateLiquidity } from "./calculateLiquidity";
 
 export const getAllStrikes = async (
   lyra,
@@ -49,28 +45,51 @@ export const getAllStrikes = async (
         iterations: 3,
       });
 
-      // Is this correct???
-      const baseIv = strike.board().baseIv;
       const option = strike.option(isCall);
 
-      //console.log(bigNumberSlippage);
+      //console.log(`${foo}: ${freeLiquidity / 1e18}`);
+      //console.log("-------------");
+      //console.log(`${foo}: ${burnableLiquidity / 1e18}`);
 
-      const bigNumberSlippage = parseUnits(slippage, 18);
+      //const bigNumberSlippage = parseUnits(slippage, 18);
 
       //const bigNumberValue = BigNumber.from("0.01");
       //console.log(bigNumberSlippage); // BigNumber { _hex: '0x9', _isBigNumber: true }
 
-      const availableLiquidity = await getAvailableLiquidity(
-        bigNumberSlippage,
-        strike.market().spotPrice,
-        option,
-        strike.skew,
-        baseIv
+      //const availableLiquidity = await getAvailableLiquidity(
+      //  strike.market().spotPrice,
+      //  option,
+      //  strike.skew,
+      //  baseIv,
+      //  bigNumberSlippage,
+      //  freeLiquidity
+      //);
+
+      const LIMIT_PRICE =
+        (quote.pricePerOption / 1e18) * (1 + parseFloat(slippage));
+
+      //console.log(1 + parseFloat(slippage));
+
+      const liquidity = await calculateLiquidity(
+        strike,
+        isCall,
+        isBuy,
+        LIMIT_PRICE
       );
 
-      //console.log(availableLiquidity);
+      //const foo = await strike.quote(isCall, isBuy, toBigNumber(300), {
+      //  iterations: 3,
+      //});
 
-      //console.log(availableLiquidity);
+      //console.log(
+      //  `${strike.strikePrice / 1e18}: ${foo.isDisabled}, ${
+      //    foo.disabledReason
+      //  }, ${foo.pricePerOption / 1e18}`
+      //);
+
+      console.log(`liquidity for ${strike.strikePrice / 1e18}: ${liquidity}`);
+
+      //console.log(`${strike.market().name}: ${strike.market().spotPrice}`);
 
       // extract the data u need out of quote.
 
@@ -95,7 +114,7 @@ export const getAllStrikes = async (
         delta: (quote.greeks.delta / 1e18).toFixed(3),
         theta: (quote.greeks.theta / 1e18).toFixed(3),
         rho: (quote.greeks.rho / 1e18).toFixed(3),
-        availableLiquidity: (availableLiquidity / 1e18).toFixed(3),
+        availableLiquidity: liquidity,
       };
     })
   );
