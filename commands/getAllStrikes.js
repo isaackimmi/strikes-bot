@@ -1,7 +1,7 @@
 import { formatUnderlying } from "../utils/formatUnderlying";
 import { CONTRACT_SIZE, UNIT } from "../constants";
 import { addDST } from "../utils/addDST";
-import { calculateLiquidity } from "./calculateLiquidity";
+import { calculateLiquidity } from "../utils/calculateLiquidity";
 
 export const getAllStrikes = async (
   lyra,
@@ -14,7 +14,7 @@ export const getAllStrikes = async (
 ) => {
   const formattedUnderlying = formatUnderlying(network, underlying);
 
-  const epochExpiry = addDST(new Date(expiry), expiry);
+  //  const epochExpiry = addDST(new Date(expiry), expiry);
 
   const markets = await lyra.markets();
 
@@ -28,7 +28,7 @@ export const getAllStrikes = async (
 
   const board = market
     .liveBoards()
-    .find((board) => board.expiryTimestamp === epochExpiry);
+    .find((board) => board.expiryTimestamp === expiry);
 
   if (!board) {
     return "Invalid expiry";
