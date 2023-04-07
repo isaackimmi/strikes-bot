@@ -1,19 +1,21 @@
 import Discord, {
   GatewayIntentBits,
-  Events,
   ActionRowBuilder,
   StringSelectMenuBuilder,
-  ComponentType,
+  EmbedBuilder,
+  bold,
+  AttachmentBuilder,
 } from "discord.js";
 import Lyra, { Chain } from "@lyrafinance/lyra-js";
 
 import config from "./config.js";
-//import { getAllStrikes } from "./commands/getAllStrikes.js";
+import { getAllStrikes } from "./commands/getAllStrikes.js";
 import { createExpiryOptions } from "./utils/createExpiryOptions.js";
-import { whatDaoIDo } from "./utils/whatDaoIDo.js";
 import { formatTruncatedUSD } from "./utils/formatTruncatedUSD.js";
 import { formatUnderlying } from "./utils/formatUnderlying.js";
 import { formatDateAndTimestamp } from "./utils/formatDateAndTimeStamp.js";
+import { CONTRACT_SIZE } from "./constants.js";
+import { fromUnixEpoch } from "./utils/fromUnixEpoch.js";
 
 const client = new Discord.Client({
   intents: [
@@ -27,35 +29,136 @@ const client = new Discord.Client({
   ],
 });
 
-let lyra;
+let OP_LYRA;
+let ARB_LYRA;
 let selectedChain;
 let selectedMarket;
+let formattedUnderlying;
 let expiries = [];
 let selectedExpiry;
 let selectedSlippage;
+let isBuy;
+let isCall;
+let OP_MARKETS;
+let ARB_MARKETS;
+let market;
+let board;
+let filteredStrikes = [];
 
-const splitIntoChunks = (text) => {
-  const chunks = [];
-
-  for (let i = 0; i < text.length; i += 2000) {
-    chunks.push(text.substring(i, i + 2000));
-  }
-
-  return chunks;
-};
 const sendFormattedStrikes = async (channel, message) => {
-  const chunks = splitIntoChunks(message);
+  const logo = new AttachmentBuilder("./lyra-logo.png");
 
-  for (const chunk of chunks) {
-    await channel.send(chunk);
-  }
+  message.forEach(async (strike) => {
+    const embed = new EmbedBuilder()
+      .setColor([86, 195, 169, 1])
+      .setTitle(`Strike Price: $${strike.strikePrice}`)
+      .setURL(
+        `https://app.lyra.finance/#/trade/${
+          selectedChain === "OP" ? "optimism" : "arbitrum"
+        }/${formattedUnderlying.toLowerCase()}?expiry=${selectedExpiry}`
+      )
+      .setThumbnail("attachment://lyra-logo.png")
+      .addFields(
+        {
+          name: "Price Per Option: ",
+          value: `$${strike.pricePerOption}`,
+          inline: true,
+        },
+        {
+          name: "Break Even: ",
+          value: `$${strike.breakEven}`,
+          inline: true,
+        },
+        {
+          name: "To Break Even: ",
+          value: `${
+            strike.toBreakEven >= 0
+              ? `$${strike.toBreakEven}`
+              : `-$${Math.abs(strike.toBreakEven)}`
+          }`,
+          inline: true,
+        },
+        {
+          name: "Open Interest: ",
+          value: `${
+            strike.openInterest.gt(0)
+              ? formatTruncatedUSD(strike.openInterest)
+              : "-"
+          }`,
+          inline: true,
+        },
+        {
+          name: "Skew: ",
+          value: `${strike.skew}`,
+          inline: true,
+        },
+        {
+          name: "Base IV: ",
+          value: `${strike.baseIv}`,
+          inline: true,
+        },
+        {
+          name: "Volatility: ",
+          value: `${strike.vol}`,
+          inline: true,
+        },
+        {
+          name: "Vega: ",
+          value: `${strike.vega}`,
+          inline: true,
+        },
+        {
+          name: "Gamma: ",
+          value: `${strike.gamma}`,
+          inline: true,
+        },
+        {
+          name: "Delta: ",
+          value: `${strike.delta}`,
+          inline: true,
+        },
+        {
+          name: "Theta: ",
+          value: `${strike.theta}`,
+          inline: true,
+        },
+        {
+          name: "Rho: ",
+          value: `${strike.rho}`,
+          inline: true,
+        },
+        {
+          name: "Available Liquidity: ",
+          value: `${strike.availableLiquidity} contracts`,
+          inline: true,
+        }
+      )
+      .setTimestamp()
+      .setFooter({
+        text: `${isBuy ? "Buy" : "Sell"} | ${
+          isCall ? "Call" : "Put"
+        } | Slippage: ${selectedSlippage * 100}%`,
+      });
+
+    // Added setTimeout in order to keep the strikes in ascending order.
+    // without this the strikes are displayed in random order.
+    setTimeout(() => {
+      channel.send({ embeds: [embed], files: [logo] });
+    }, 1000);
+    //channel.send({ embeds: [embed], files: [logo] });
+    //await new Promise((resolve) => setTimeout(resolve, 1000)); // 1 second delay
+  });
 };
 
 client.login(config.token);
 
-// Event listeners
 client.on("ready", async () => {
   console.log(`Logged in as ${client.user.tag}!`);
+
+  OP_LYRA = new Lyra(Chain.Optimism);
+  ARB_LYRA = new Lyra(Chain.Arbitrum);
+  OP_MARKETS = await OP_LYRA.markets();
+  ARB_MARKETS = await ARB_LYRA.markets();
 
   const command = [
     {
@@ -64,18 +167,13 @@ client.on("ready", async () => {
     },
   ];
 
-  const commands = await client.application?.commands.set(command);
-
-  //console.log(commands);
+  await client.application?.commands.set(command);
 });
 
 client.on("interactionCreate", async (interaction) => {
-  //console.log(`New interaction received: ${interaction.type}`);
-  //console.log(interaction.isMessageComponent());
-  //if (!interaction.isCommand()) return;
-
   try {
     if (interaction.type === 2 && interaction.commandName === "getallstrikes") {
+      await interaction.deferReply();
       const row = new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
           .setCustomId("chain-select")
@@ -91,20 +189,16 @@ client.on("interactionCreate", async (interaction) => {
             },
           ])
       );
-      await interaction.reply({
+
+      await interaction.followUp({
         content: "Please select a chain:",
         components: [row],
         ephemeral: true,
       });
     } else if (interaction.isMessageComponent()) {
       if (interaction.customId === "chain-select") {
+        await interaction.deferReply();
         selectedChain = interaction.values[0];
-
-        if (selectedChain === "OP") {
-          lyra = new Lyra(Chain.Optimism);
-        } else if (selectedChain === "ARB") {
-          lyra = new Lyra(Chain.Arbitrum);
-        }
 
         const row = new ActionRowBuilder().addComponents(
           new StringSelectMenuBuilder()
@@ -122,26 +216,29 @@ client.on("interactionCreate", async (interaction) => {
             ])
         );
 
-        await interaction.reply({
-          content: `You chose ${selectedChain}. Please select a market:`,
+        await interaction.editReply({
+          content: `Please select a market:`,
           components: [row],
         });
       } else if (interaction.customId === "market-select") {
+        await interaction.deferReply();
         selectedMarket = interaction.values[0];
 
-        const markets = await lyra.markets();
+        formattedUnderlying = formatUnderlying(selectedChain, selectedMarket);
 
-        const formattedUnderlying = formatUnderlying(
-          selectedChain,
-          selectedMarket
-        );
+        if (selectedChain === "OP" && OP_MARKETS) {
+          market = OP_MARKETS.find(
+            (market) =>
+              market.name.toLowerCase() === formattedUnderlying.toLowerCase()
+          );
+        } else if (selectedChain === "ARB" && ARB_MARKETS) {
+          market = ARB_MARKETS.find(
+            (market) =>
+              market.name.toLowerCase() === formattedUnderlying.toLowerCase()
+          );
+        }
 
-        const market = markets.find(
-          (market) =>
-            market.name.toLowerCase() === formattedUnderlying.toLowerCase()
-        );
-
-        const board = market.liveBoards();
+        board = market.liveBoards();
 
         for (let i = 0; i < board.length; i++) {
           if (!expiries.includes(board[i].expiryTimestamp)) {
@@ -154,6 +251,7 @@ client.on("interactionCreate", async (interaction) => {
               const dateAndTimestamp = formatDateAndTimestamp(
                 board[i].expiryTimestamp
               );
+
               expiries.push(dateAndTimestamp);
             }
           }
@@ -167,17 +265,16 @@ client.on("interactionCreate", async (interaction) => {
             .addOptions(expiryOptions)
         );
 
-        await interaction.reply({
-          content: `You chose ${selectedMarket}. Please select an expiry:`,
+        await interaction.editReply({
+          content: `Please select an expiry:`,
           components: [row],
         });
       } else if (interaction.customId === "expiry-select") {
         selectedExpiry = parseInt(interaction.values[0]);
-
         const row = new ActionRowBuilder().addComponents(
           new StringSelectMenuBuilder()
             .setCustomId("slippage-select")
-            .setPlaceholder("Select a slippage tolerance")
+            .setPlaceholder("Select slippage tolerance")
             .addOptions([
               {
                 label: "1%",
@@ -199,137 +296,108 @@ client.on("interactionCreate", async (interaction) => {
         );
 
         await interaction.reply({
-          content: `You chose ${selectedChain}. Please select a slippage tolerance:`,
+          content: `Please select slippage tolerance:`,
           components: [row],
         });
       } else if (interaction.customId === "slippage-select") {
         selectedSlippage = parseFloat(interaction.values[0]);
-        //console.log(selectedChain);
-        //console.log(selectedMarket);
-        //console.log(selectedExpiry);
-        //console.log(selectedSlippage);
 
-        //const strikes = await getAllStrikes(
-        //  lyra,
-        //  underlying.toUpperCase(),
-        //  expiry,
-        //  network,
-        //  isBuy,
-        //  isCall,
-        //  slippage
-        //);
-        //const formattedStrikes = strikes
-        //  .map(
-        //    (strike) =>
-        //      `\nStrike Price: $${strike.strikePrice}\n` +
-        //      `Price Per Option = $${strike.pricePerOption}\n` +
-        //      `Break Even = $${strike.breakEven}\n` +
-        //      `To Break Even = ${strike.toBreakEven}\n` +
-        //      `Open Interest = ${
-        //        strike.openInterest.gt(0)
-        //          ? formatTruncatedUSD(strike.openInterest)
-        //          : "-"
-        //      }\n` +
-        //      `Skew = ${strike.skew}\n` +
-        //      `Base IV = ${strike.baseIv}\n` +
-        //      `Volatility = ${strike.vol}\n` +
-        //      `Vega = ${strike.vega}\n` +
-        //      `Gamma = ${strike.gamma}\n` +
-        //      `Delta = ${strike.delta}\n` +
-        //      `Theta = ${strike.theta}\n` +
-        //      `Rho = ${strike.rho}\n` +
-        //      `Available Liquidity = ${strike.availableLiquidity} options\n`
-        //  )
-        //  .join("");
+        const row = new ActionRowBuilder().addComponents(
+          new StringSelectMenuBuilder()
+            .setCustomId("isBuy-select")
+            .setPlaceholder("Select Buy / Sell")
+            .addOptions([
+              {
+                label: "Buy",
+                value: "true",
+              },
+              {
+                label: "Sell",
+                value: "false",
+              },
+            ])
+        );
 
-        //await sendFormattedStrikes(interaction.channel, formattedStrikes);
+        await interaction.reply({
+          content: `Please select Buy / Sell:`,
+          components: [row],
+        });
+      } else if (interaction.customId === "isBuy-select") {
+        isBuy = interaction.values[0] === "true";
+        const row = new ActionRowBuilder().addComponents(
+          new StringSelectMenuBuilder()
+            .setCustomId("isCall-select")
+            .setPlaceholder("Select Call / Put")
+            .addOptions([
+              {
+                label: "Call",
+                value: "true",
+              },
+              {
+                label: "Put",
+                value: "false",
+              },
+            ])
+        );
+
+        await interaction.reply({
+          content: `Please select Call / Put:`,
+          components: [row],
+        });
+      } else if (interaction.customId === "isCall-select") {
+        isCall = interaction.values[0] === "true";
+
+        await interaction.deferReply();
+
+        board = market
+          .liveBoards()
+          .find((board) => board.expiryTimestamp === parseInt(selectedExpiry));
+
+        filteredStrikes = board
+          .strikes()
+          .map((strike) => {
+            const quote = strike.quoteSync(isCall, isBuy, CONTRACT_SIZE, {
+              iterations: 3,
+            });
+
+            const option = strike.option(isCall);
+
+            if (strike.isDeltaInRange && quote && option) {
+              return {
+                strike: strike,
+                breakEven: quote.breakEven,
+                toBreakEven: quote.toBreakEven,
+                pricePerOption: quote.pricePerOption,
+                fairIv: quote.fairIv,
+                iv: quote.iv,
+                greeks: quote.greeks,
+                longOpenInterest: option.longOpenInterest,
+                shortOpenInterest: option.shortOpenInterest,
+                spotPrice: option.market().spotPrice,
+              };
+            } else {
+              return null;
+            }
+          })
+          .filter((obj) => obj !== null);
+
+        const strikes = await getAllStrikes(
+          filteredStrikes,
+          isBuy,
+          isCall,
+          selectedSlippage
+        );
+
+        await sendFormattedStrikes(interaction.channel, strikes);
+
+        await interaction.editReply(
+          `Here are all the strikes and their available liquidities for ${fromUnixEpoch(
+            selectedExpiry
+          )}:`
+        );
       }
     }
   } catch (error) {
     console.log(error);
-
-    //console.log(ComponentType.StringSelect);
-    //console.log(interaction);
   }
 });
-
-//client.on("interactionCreate", async (interaction) => {
-//  console.log("handler");
-//  if (!interaction.isCommand()) return;
-
-//  if (interaction.commandName === "getallstrikes") {
-//    const network = interaction.options.getString("network");
-
-//    console.log(network);
-//  }
-//});
-
-//client.on("interactionCreate", async (interaction) => {
-//  //if (!message.content.startsWith(config.prefix) || message.author.bot) return;
-//  //const args = message.content.slice(config.prefix.length).trim().split(/ +/);
-//  //const command = args.shift().toLowerCase();
-//  if (!interaction.isCommand()) return;
-
-//  const { commandName } = interaction;
-
-//  if (commandName === "getallstrikes") {
-//    console.log("interaction working");
-//    // Buy/Sell
-//    //if (args[3].toLowerCase() === "buy") {
-//    //  args[3] = true;
-//    //} else {
-//    //  args[3] = false;
-//    //}
-//    //// Call/Put
-//    //if (args[4].toLowerCase() === "call") {
-//    //  args[4] = true;
-//    //} else {
-//    //  args[4] = false;
-//    //}
-//    //const [underlying, expiry, network, isBuy, isCall, slippage] = args;
-//    //if (network === "OP") {
-//    //  lyra = new Lyra(Chain.Optimism);
-//    //} else if (network === "ARB") {
-//    //  lyra = new Lyra(Chain.Arbitrum);
-//    //}
-//    //// ADD CODE HERE
-//    const strikes = await getAllStrikes(
-//      lyra,
-//      underlying.toUpperCase(),
-//      expiry,
-//      network,
-//      isBuy,
-//      isCall,
-//      slippage
-//    );
-//    const formattedStrikes = strikes
-//      .map(
-//        (strike) =>
-//          `\nStrike Price: $${strike.strikePrice}\n` +
-//          `Price Per Option = $${strike.pricePerOption}\n` +
-//          `Break Even = $${strike.breakEven}\n` +
-//          `To Break Even = ${strike.toBreakEven}\n` +
-//          `Open Interest = ${
-//            strike.openInterest.gt(0)
-//              ? formatTruncatedUSD(strike.openInterest)
-//              : "-"
-//          }\n` +
-//          `Skew = ${strike.skew}\n` +
-//          `Base IV = ${strike.baseIv}\n` +
-//          `Volatility = ${strike.vol}\n` +
-//          `Vega = ${strike.vega}\n` +
-//          `Gamma = ${strike.gamma}\n` +
-//          `Delta = ${strike.delta}\n` +
-//          `Theta = ${strike.theta}\n` +
-//          `Rho = ${strike.rho}\n` +
-//          `Available Liquidity = ${strike.availableLiquidity} options\n`
-//      )
-//      .join("");
-//    await sendFormattedStrikes(message.channel, formattedStrikes);
-//  } else if (command === "whatDaoIDo") {
-//  } else {
-//    await message.channel.send(
-//      "Invalid command. To see all available commands type !whatDaoIDo"
-//    );
-//  }
-//});
