@@ -1,5 +1,5 @@
 {
-  "name": "my-discord-bot",
+  "name": "strikes-bot",
   "version": "1.0.0",
   "scripts": {
     "build": "babel index.js --out-dir dist",
