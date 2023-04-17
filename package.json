@@ -2,7 +2,7 @@
   "name": "strikes-bot",
   "version": "1.0.0",
   "scripts": {
-    "build": "babel index.js --out-dir dist && babel constants.js --out-file dist/constants.js && babel commands --out-dir dist/commands && babel utils --out-dir dist/utils",
+    "build": "babel index.js --out-dir dist && babel constants.js --out-file dist/constants.js && babel commands --out-dir dist/commands && babel utils --out-dir dist/utils && cp lyra-logo.png dist/",
     "start": "node dist/index.js",
     "dev": "nodemon --exec babel-node index.js"
   },
