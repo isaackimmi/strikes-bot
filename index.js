@@ -1,9 +1,6 @@
 import Discord, {
   GatewayIntentBits,
-  ActionRowBuilder,
-  StringSelectMenuBuilder,
   EmbedBuilder,
-  bold,
   AttachmentBuilder,
 } from "discord.js";
 import Lyra, { Chain } from "@lyrafinance/lyra-js";
@@ -14,8 +11,16 @@ import { createExpiryOptions } from "./utils/createExpiryOptions.js";
 import { formatTruncatedUSD } from "./utils/formatTruncatedUSD.js";
 import { formatUnderlying } from "./utils/formatUnderlying.js";
 import { formatDateAndTimestamp } from "./utils/formatDateAndTimeStamp.js";
-import { CONTRACT_SIZE } from "./constants.js";
+import {
+  CHAIN_OPTIONS,
+  CONTRACT_SIZE,
+  ISBUY_OPTIONS,
+  ISCALL_OPTIONS,
+  MARKET_OPTIONS,
+  SLIPPAGE_OPTIONS,
+} from "./constants.js";
 import { fromUnixEpoch } from "./utils/fromUnixEpoch.js";
+import { createStringSelectMenu } from "./utils/createStringSelectMenu.js";
 
 const client = new Discord.Client({
   intents: [
@@ -41,14 +46,16 @@ let isBuy;
 let isCall;
 let OP_MARKETS;
 let ARB_MARKETS;
+let expiryOptions;
 let market;
 let board;
 let filteredStrikes = [];
+let prevMessageId;
 
 const sendFormattedStrikes = async (channel, message) => {
   const logo = new AttachmentBuilder("./lyra-logo.png");
 
-  message.forEach(async (strike) => {
+  for (const strike of message) {
     const embed = new EmbedBuilder()
       .setColor([86, 195, 169, 1])
       .setTitle(`Strike Price: $${strike.strikePrice}`)
@@ -140,25 +147,52 @@ const sendFormattedStrikes = async (channel, message) => {
         } | Slippage: ${selectedSlippage * 100}%`,
       });
 
-    // Added setTimeout in order to keep the strikes in ascending order.
-    // without this the strikes are displayed in random order.
-    setTimeout(() => {
-      channel.send({ embeds: [embed], files: [logo] });
-    }, 1000);
-    //channel.send({ embeds: [embed], files: [logo] });
-    //await new Promise((resolve) => setTimeout(resolve, 1000)); // 1 second delay
-  });
+    await channel.send({ embeds: [embed], files: [logo] });
+  }
 };
+
+async function getMarket(chain, formattedUnderlying) {
+  let market;
+  while (!market) {
+    if (chain === "OP" && OP_MARKETS) {
+      market = OP_MARKETS.find(
+        (market) =>
+          market.name.toLowerCase() === formattedUnderlying.toLowerCase()
+      );
+    } else if (chain === "ARB" && ARB_MARKETS) {
+      market = ARB_MARKETS.find(
+        (market) =>
+          market.name.toLowerCase() === formattedUnderlying.toLowerCase()
+      );
+    }
+    if (!market) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }
+  return market;
+}
 
 client.login(config.token);
 
 client.on("ready", async () => {
   console.log(`Logged in as ${client.user.tag}!`);
 
-  OP_LYRA = new Lyra(Chain.Optimism);
-  ARB_LYRA = new Lyra(Chain.Arbitrum);
-  OP_MARKETS = await OP_LYRA.markets();
-  ARB_MARKETS = await ARB_LYRA.markets();
+  // Function to initialize Lyra objects
+  const initializeLyraObjects = async () => {
+    OP_LYRA = new Lyra(Chain.Optimism);
+    ARB_LYRA = new Lyra(Chain.Arbitrum);
+    OP_MARKETS = await OP_LYRA.markets();
+    ARB_MARKETS = await ARB_LYRA.markets();
+  };
+
+  // Initialize Lyra objects when the bot is ready
+  await initializeLyraObjects();
+
+  // Refresh Lyra objects every 10 minutes (600000 milliseconds)
+  setInterval(async () => {
+    await initializeLyraObjects();
+    console.log("Lyra objects refreshed");
+  }, 60000);
 
   const command = [
     {
@@ -174,69 +208,54 @@ client.on("interactionCreate", async (interaction) => {
   try {
     if (interaction.type === 2 && interaction.commandName === "getallstrikes") {
       await interaction.deferReply();
-      const row = new ActionRowBuilder().addComponents(
-        new StringSelectMenuBuilder()
-          .setCustomId("chain-select")
-          .setPlaceholder("Select a chain")
-          .addOptions([
-            {
-              label: "Optimism",
-              value: "OP",
-            },
-            {
-              label: "Arbitrum",
-              value: "ARB",
-            },
-          ])
+      const row = createStringSelectMenu(
+        "chain-select",
+        "Select a chain",
+        CHAIN_OPTIONS
       );
 
-      await interaction.followUp({
+      const response = await interaction.editReply({
         content: "Please select a chain:",
         components: [row],
         ephemeral: true,
+        fetchReply: true,
       });
+
+      prevMessageId = response.id;
     } else if (interaction.isMessageComponent()) {
       if (interaction.customId === "chain-select") {
         await interaction.deferReply();
         selectedChain = interaction.values[0];
 
-        const row = new ActionRowBuilder().addComponents(
-          new StringSelectMenuBuilder()
-            .setCustomId("market-select")
-            .setPlaceholder("Select a market")
-            .addOptions([
-              {
-                label: "ETH",
-                value: "ETH",
-              },
-              {
-                label: "BTC",
-                value: "BTC",
-              },
-            ])
+        const disabledRow = createStringSelectMenu(
+          "chain-select",
+          selectedChain,
+          CHAIN_OPTIONS
         );
 
-        await interaction.editReply({
+        await interaction.webhook.editMessage(prevMessageId, {
+          components: [disabledRow],
+        });
+
+        const row = createStringSelectMenu(
+          "market-select",
+          "Select a market",
+          MARKET_OPTIONS
+        );
+
+        const response = await interaction.editReply({
           content: `Please select a market:`,
           components: [row],
         });
+
+        prevMessageId = response.id;
       } else if (interaction.customId === "market-select") {
         await interaction.deferReply();
         selectedMarket = interaction.values[0];
 
         formattedUnderlying = formatUnderlying(selectedChain, selectedMarket);
 
-        if (selectedChain === "OP" && OP_MARKETS) {
-          market = OP_MARKETS.find(
-            (market) =>
-              market.name.toLowerCase() === formattedUnderlying.toLowerCase()
-          );
-        } else if (selectedChain === "ARB" && ARB_MARKETS) {
-          market = ARB_MARKETS.find(
-            (market) =>
-              market.name.toLowerCase() === formattedUnderlying.toLowerCase()
-          );
-        }
+        market = await getMarket(selectedChain, formattedUnderlying);
 
         board = market.liveBoards();
 
@@ -257,97 +276,121 @@ client.on("interactionCreate", async (interaction) => {
           }
         }
 
-        const expiryOptions = createExpiryOptions(expiries);
-        const row = new ActionRowBuilder().addComponents(
-          new StringSelectMenuBuilder()
-            .setCustomId("expiry-select")
-            .setPlaceholder("Select an expiry")
-            .addOptions(expiryOptions)
+        const disabledRow = createStringSelectMenu(
+          "market-select",
+          selectedMarket,
+          MARKET_OPTIONS
         );
 
-        await interaction.editReply({
+        await interaction.webhook.editMessage(prevMessageId, {
+          components: [disabledRow],
+        });
+
+        expiryOptions = createExpiryOptions(expiries);
+        const row = createStringSelectMenu(
+          "expiry-select",
+          "Select an expiry",
+          expiryOptions
+        );
+
+        const response = await interaction.editReply({
           content: `Please select an expiry:`,
           components: [row],
         });
+
+        prevMessageId = response.id;
       } else if (interaction.customId === "expiry-select") {
         selectedExpiry = parseInt(interaction.values[0]);
-        const row = new ActionRowBuilder().addComponents(
-          new StringSelectMenuBuilder()
-            .setCustomId("slippage-select")
-            .setPlaceholder("Select slippage tolerance")
-            .addOptions([
-              {
-                label: "1%",
-                value: "0.01",
-              },
-              {
-                label: "2%",
-                value: "0.02",
-              },
-              {
-                label: "5%",
-                value: "0.05",
-              },
-              {
-                label: "10%",
-                value: "0.1",
-              },
-            ])
+        await interaction.deferReply();
+
+        const row = createStringSelectMenu(
+          "slippage-select",
+          "Select slippage tolerance",
+          SLIPPAGE_OPTIONS
         );
 
-        await interaction.reply({
+        const disabledRow = createStringSelectMenu(
+          "expiry-select",
+          fromUnixEpoch(selectedExpiry),
+          expiryOptions
+        );
+
+        await interaction.webhook.editMessage(prevMessageId, {
+          components: [disabledRow],
+        });
+
+        const response = await interaction.editReply({
           content: `Please select slippage tolerance:`,
           components: [row],
         });
+
+        prevMessageId = response.id;
       } else if (interaction.customId === "slippage-select") {
         selectedSlippage = parseFloat(interaction.values[0]);
+        await interaction.deferReply();
 
-        const row = new ActionRowBuilder().addComponents(
-          new StringSelectMenuBuilder()
-            .setCustomId("isBuy-select")
-            .setPlaceholder("Select Buy / Sell")
-            .addOptions([
-              {
-                label: "Buy",
-                value: "true",
-              },
-              {
-                label: "Sell",
-                value: "false",
-              },
-            ])
+        const row = createStringSelectMenu(
+          "isBuy-select",
+          "Select Buy / Sell",
+          ISBUY_OPTIONS
         );
 
-        await interaction.reply({
+        const disabledRow = createStringSelectMenu(
+          "slippage-select",
+          `${(selectedSlippage * 100).toString()}%`,
+          SLIPPAGE_OPTIONS
+        );
+
+        await interaction.webhook.editMessage(prevMessageId, {
+          components: [disabledRow],
+        });
+
+        const response = await interaction.editReply({
           content: `Please select Buy / Sell:`,
           components: [row],
         });
+
+        prevMessageId = response.id;
       } else if (interaction.customId === "isBuy-select") {
         isBuy = interaction.values[0] === "true";
-        const row = new ActionRowBuilder().addComponents(
-          new StringSelectMenuBuilder()
-            .setCustomId("isCall-select")
-            .setPlaceholder("Select Call / Put")
-            .addOptions([
-              {
-                label: "Call",
-                value: "true",
-              },
-              {
-                label: "Put",
-                value: "false",
-              },
-            ])
+        await interaction.deferReply();
+
+        const row = createStringSelectMenu(
+          "isCall-select",
+          "Select Call / Put",
+          ISCALL_OPTIONS
         );
 
-        await interaction.reply({
+        const disabledRow = createStringSelectMenu(
+          "isBuy-select",
+          isBuy ? "Buy" : "Sell",
+          ISBUY_OPTIONS
+        );
+
+        await interaction.webhook.editMessage(prevMessageId, {
+          components: [disabledRow],
+        });
+
+        const response = await interaction.editReply({
           content: `Please select Call / Put:`,
           components: [row],
         });
+
+        prevMessageId = response.id;
       } else if (interaction.customId === "isCall-select") {
         isCall = interaction.values[0] === "true";
 
         await interaction.deferReply();
+
+        const disabledRow = createStringSelectMenu(
+          "isCall-select",
+          isCall ? "Call" : "Put",
+          ISCALL_OPTIONS
+        );
+
+        await interaction.webhook.editMessage(prevMessageId, {
+          components: [disabledRow],
+        });
 
         board = market
           .liveBoards()
@@ -390,14 +433,19 @@ client.on("interactionCreate", async (interaction) => {
 
         await sendFormattedStrikes(interaction.channel, strikes);
 
-        await interaction.editReply(
+        const response = await interaction.editReply(
           `Here are all the strikes and their available liquidities for ${fromUnixEpoch(
             selectedExpiry
           )}:`
         );
+
+        prevMessageId = response.id;
       }
     }
   } catch (error) {
-    console.log(error);
+    console.error(error);
+    await interaction.channel.send(
+      "There was an error processing the request. Please try again."
+    );
   }
 });
