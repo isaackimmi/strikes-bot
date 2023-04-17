@@ -5,7 +5,7 @@ import Discord, {
 } from "discord.js";
 import Lyra, { Chain } from "@lyrafinance/lyra-js";
 
-import config from "./config.js";
+import dotenv from "dotenv";
 import { getAllStrikes } from "./commands/getAllStrikes.js";
 import { createExpiryOptions } from "./utils/createExpiryOptions.js";
 import { formatTruncatedUSD } from "./utils/formatTruncatedUSD.js";
@@ -172,7 +172,8 @@ async function getMarket(chain, formattedUnderlying) {
   return market;
 }
 
-client.login(config.token);
+dotenv.config();
+client.login(process.env.DISCORD_BOT_TOKEN);
 
 client.on("ready", async () => {
   console.log(`Logged in as ${client.user.tag}!`);
