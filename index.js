@@ -322,13 +322,6 @@ client.on("interactionCreate", async (interaction) => {
 
         board = market.liveBoards();
 
-        const member = interaction;
-        //await member.fetch();
-
-        //userTimezone = member;
-
-        console.log(interaction);
-
         for (let i = 0; i < board.length; i++) {
           if (!expiries.includes(board[i].expiryTimestamp)) {
             if (
