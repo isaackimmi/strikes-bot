@@ -57,6 +57,7 @@ let market;
 let board;
 let filteredStrikes = [];
 let prevMessageId;
+let userTimezone;
 
 const getLyraSubgraphURI = (network, version) => {
   const SATSUMA_API_KEY = process.env.SATSUMA_API_KEY;
@@ -321,6 +322,13 @@ client.on("interactionCreate", async (interaction) => {
 
         board = market.liveBoards();
 
+        const member = interaction;
+        //await member.fetch();
+
+        //userTimezone = member;
+
+        console.log(interaction);
+
         for (let i = 0; i < board.length; i++) {
           if (!expiries.includes(board[i].expiryTimestamp)) {
             if (
@@ -330,7 +338,8 @@ client.on("interactionCreate", async (interaction) => {
               )
             ) {
               const dateAndTimestamp = formatDateAndTimestamp(
-                board[i].expiryTimestamp
+                board[i].expiryTimestamp,
+                userTimezone
               );
 
               expiries.push(dateAndTimestamp);
@@ -373,7 +382,7 @@ client.on("interactionCreate", async (interaction) => {
 
         const disabledRow = createStringSelectMenu(
           "expiry-select",
-          formatDateTime(selectedExpiry),
+          formatDateTime(selectedExpiry, userTimezone),
           expiryOptions
         );
 
@@ -497,7 +506,8 @@ client.on("interactionCreate", async (interaction) => {
 
         const response = await interaction.editReply(
           `Here are all the strikes and their available liquidities for ${formatDateTime(
-            selectedExpiry
+            selectedExpiry,
+            userTimezone
           )}:`
         );
 

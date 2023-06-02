@@ -1,7 +1,8 @@
 import moment from "moment";
 import parseDate from "./parseDate";
 
-export const formatDateTime = (ts, options) => {
+export const formatDateTime = (ts, userTimezone, options) => {
+  userTimezone = "Australia/Sydney";
   const {
     hideYear = false,
     hideMins = true,
@@ -16,6 +17,7 @@ export const formatDateTime = (ts, options) => {
     minute: hideMins ? undefined : "numeric",
     hour12: true, // Display in 12-hour format
     hourCycle: "h23", // Suppress leading zero in hour
+    timeZone: userTimezone,
   };
 
   const parsedDate = parseDate(ts);
