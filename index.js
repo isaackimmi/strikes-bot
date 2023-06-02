@@ -3,7 +3,11 @@ import Discord, {
   EmbedBuilder,
   AttachmentBuilder,
 } from "discord.js";
-import Lyra, { Chain } from "@lyrafinance/lyra-js";
+import Lyra, { Chain, Version, Network } from "@lyrafinance/lyra-js";
+import {
+  JsonRpcProvider,
+  StaticJsonRpcProvider,
+} from "@ethersproject/providers";
 
 import dotenv from "dotenv";
 import { getAllStrikes } from "./commands/getAllStrikes.js";
@@ -19,7 +23,6 @@ import {
   MARKET_OPTIONS,
   SLIPPAGE_OPTIONS,
 } from "./constants.js";
-import { fromUnixEpoch } from "./utils/fromUnixEpoch.js";
 import { createStringSelectMenu } from "./utils/createStringSelectMenu.js";
 
 const client = new Discord.Client({
@@ -51,6 +54,40 @@ let market;
 let board;
 let filteredStrikes = [];
 let prevMessageId;
+
+const getLyraSubgraphURI = (network, version) => {
+  const SATSUMA_API_KEY = process.env.SATSUMA_API_KEY;
+
+  console.log(SATSUMA_API_KEY);
+  console.log(network);
+  console.log(version);
+  if (!SATSUMA_API_KEY) {
+    // Use SDK default
+    return;
+  }
+  switch (network) {
+    case Network.Optimism:
+      return version === Version.Avalon
+        ? `https://subgraph.satsuma-prod.com/${SATSUMA_API_KEY}/lyra/optimism-mainnet/api`
+        : `https://subgraph.satsuma-prod.com/${SATSUMA_API_KEY}/lyra/optimism-mainnet-newport/api`;
+    case Network.Arbitrum:
+      return `https://subgraph.satsuma-prod.com/${SATSUMA_API_KEY}/lyra/arbitrum-mainnet/api`;
+  }
+};
+
+const getLyraGovSubgraphURI = (network) => {
+  const SATSUMA_API_KEY = process.env.SATSUMA_API_KEY;
+  if (!SATSUMA_API_KEY) {
+    // Use SDK default
+    return;
+  }
+  switch (network) {
+    case Network.Optimism:
+      return `https://subgraph.satsuma-prod.com/${SATSUMA_API_KEY}/lyra/optimism-governance/api`;
+    case Network.Arbitrum:
+      return `https://subgraph.satsuma-prod.com/${SATSUMA_API_KEY}/lyra/arbitrum-governance/api`;
+  }
+};
 
 const sendFormattedStrikes = async (channel, message) => {
   const logo = new AttachmentBuilder("./lyra-logo.png");
@@ -180,9 +217,32 @@ client.on("ready", async () => {
 
   // Function to initialize Lyra objects
   const initializeLyraObjects = async () => {
-    OP_LYRA = new Lyra(Chain.Optimism);
+    const OP_PROVIDER = new StaticJsonRpcProvider(
+      process.env.OP_MAINNET_URL,
+      10
+    );
+
+    //console.log(getLyraSubgraphURI(Network.Optimism, Version.Newport));
+
+    OP_LYRA = new Lyra({
+      provider: OP_PROVIDER,
+      apiUri: process.env.API_URL,
+      subgraphUri: getLyraSubgraphURI(Network.Optimism, Version.Newport),
+      govSubgraphUri: getLyraGovSubgraphURI(Network.Optimism),
+      version: Version.Newport,
+    });
+
+    //export const lyraOptimism = new Lyra({
+    //  provider: optimismProvider,
+    //  apiUri: process.env.REACT_APP_API_URL,
+    //  subgraphUri: getLyraSubgraphURI(Network.Optimism, Version.Newport),
+    //  govSubgraphUri: getLyraGovSubgraphURI(Network.Optimism),
+    //  version: Version.Newport,
+    //})
+
     ARB_LYRA = new Lyra(Chain.Arbitrum);
     OP_MARKETS = await OP_LYRA.markets();
+    console.log(OP_LYRA);
     ARB_MARKETS = await ARB_LYRA.markets();
   };
 
