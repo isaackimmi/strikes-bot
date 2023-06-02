@@ -219,13 +219,13 @@ client.on("ready", async () => {
   const initializeLyraObjects = async () => {
     const OP_MAINNET_URL = process.env.OP_MAINNET_URL;
     const OP_PROVIDER = new StaticJsonRpcProvider(
-      { skipFetchSetup: true, OP_MAINNET_URL },
+      { skipFetchSetup: true, url: OP_MAINNET_URL },
       10
     );
 
-    const ARB_MAINNET_URL = process.env.OP_MAINNET_URL;
+    const ARB_MAINNET_URL = process.env.ARB_MAINNET_URL;
     const ARB_PROVIDER = new StaticJsonRpcProvider(
-      { skipFetchSetup: true, ARB_MAINNET_URL },
+      { skipFetchSetup: true, url: ARB_MAINNET_URL },
       42161
     );
 
