@@ -12,5 +12,7 @@ export default function parseDate(timestamp) {
   } else {
     ts = timestamp;
   }
-  return new Date(ts < MIN_DATE_MS ? ts * 1000 : ts);
+  return new Date(ts < MIN_DATE_MS ? ts * 1000 : ts).toLocaleString("en-US", {
+    timeZone: "Australia/Sydney",
+  });
 }
