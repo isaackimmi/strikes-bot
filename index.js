@@ -217,13 +217,15 @@ client.on("ready", async () => {
 
   // Function to initialize Lyra objects
   const initializeLyraObjects = async () => {
+    const OP_MAINNET_URL = process.env.OP_MAINNET_URL;
     const OP_PROVIDER = new StaticJsonRpcProvider(
-      process.env.OP_MAINNET_URL,
+      { skipFetchSetup: true, OP_MAINNET_URL },
       10
     );
 
+    const ARB_MAINNET_URL = process.env.OP_MAINNET_URL;
     const ARB_PROVIDER = new StaticJsonRpcProvider(
-      process.env.ARB_MAINNET_URL,
+      { skipFetchSetup: true, ARB_MAINNET_URL },
       42161
     );
 
