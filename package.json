@@ -16,7 +16,8 @@
     "dotenv": "^16.0.3",
     "ethers": "^6.1.0",
     "lyra-js": "^2.0.4",
-    "moment": "^2.29.4"
+    "moment": "^2.29.4",
+    "moment-timezone": "^0.5.43"
   },
   "devDependencies": {
     "@babel/cli": "^7.16.0",

@@ -1,4 +1,4 @@
-import moment from "moment";
+import moment from "moment-timezone";
 import parseDate from "./parseDate";
 
 export const formatDateTime = (ts, options) => {

@@ -498,7 +498,7 @@ client.on("interactionCreate", async (interaction) => {
         await sendFormattedStrikes(interaction.channel, strikes);
 
         const response = await interaction.editReply(
-          `Here are all the strikes and their available liquidities for ${fromUnixEpoch(
+          `Here are all the strikes and their available liquidities for ${formatDateTime(
             selectedExpiry
           )}:`
         );
