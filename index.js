@@ -245,7 +245,6 @@ client.on("ready", async () => {
     OP_MARKETS = await OP_LYRA.markets();
 
     ARB_MARKETS = await ARB_LYRA.markets();
-    console.log(ARB_MARKETS);
   };
 
   // Initialize Lyra objects when the bot is ready
