@@ -24,6 +24,7 @@ import {
   SLIPPAGE_OPTIONS,
 } from "./constants.js";
 import { createStringSelectMenu } from "./utils/createStringSelectMenu.js";
+import { formatDateTime } from "./utils/formatDateTime.js";
 
 const client = new Discord.Client({
   intents: [
@@ -374,7 +375,7 @@ client.on("interactionCreate", async (interaction) => {
 
         const disabledRow = createStringSelectMenu(
           "expiry-select",
-          fromUnixEpoch(selectedExpiry),
+          formatDateTime(selectedExpiry),
           expiryOptions
         );
 
