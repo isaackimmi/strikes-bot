@@ -12,5 +12,5 @@ export const formatDateTime = (ts, options) => {
     hideMins ? "" : ":mm"
   }A${includeTimezone ? " Z" : ""}`;
 
-  return moment(parseDate(ts)).format(dateFormat);
+  return moment(parseDate(ts)).tz("Australia/Sydney").format(dateFormat);
 };
