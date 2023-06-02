@@ -2,14 +2,17 @@ export const formatUnderlying = (network, underlying) => {
   let formattedUnderlying;
   if (network.toUpperCase() === "OP") {
     switch (underlying) {
+      case "OP":
+        formattedUnderlying = "OP-USDC";
+        break;
+      case "ARB":
+        formattedUnderlying = "ARB-USDC";
+        break;
       case "ETH":
-        formattedUnderlying = "sETH-sUSD";
+        formattedUnderlying = "ETH-USDC";
         break;
       case "BTC":
-        formattedUnderlying = "sBTC-sUSD";
-        break;
-      case "SOL":
-        formattedUnderlying = "sSOL-sUSD";
+        formattedUnderlying = "WBTC-USDC";
         break;
       default:
         break;

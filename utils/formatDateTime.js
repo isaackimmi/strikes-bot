@@ -1,4 +1,4 @@
-import moment from "moment-timezone";
+import moment from "moment";
 import parseDate from "./parseDate";
 
 export const formatDateTime = (ts, options) => {
@@ -12,14 +12,5 @@ export const formatDateTime = (ts, options) => {
     hideMins ? "" : ":mm"
   }A${includeTimezone ? " Z" : ""}`;
 
-  //  console.log(ts);
-  //  console.log(moment.utc(parseDate(ts)));
-
-  //  var aestTime = parseDate(ts).toLocaleString("en-US", {
-  //    timeZone: "Australia/Brisbane",
-  //  });
-
-  //  console.log("AEST time: " + new Date(aestTime).toISOString());
-
-  return moment.utc(new Date(parseDate(ts))).format(dateFormat);
+  return moment(parseDate(ts)).format(dateFormat);
 };

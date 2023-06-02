@@ -16,11 +16,13 @@ import { formatTruncatedUSD } from "./utils/formatTruncatedUSD.js";
 import { formatUnderlying } from "./utils/formatUnderlying.js";
 import { formatDateAndTimestamp } from "./utils/formatDateAndTimeStamp.js";
 import {
+  ARB_MARKET_OPTIONS,
   CHAIN_OPTIONS,
   CONTRACT_SIZE,
   ISBUY_OPTIONS,
   ISCALL_OPTIONS,
   MARKET_OPTIONS,
+  OP_MARKET_OPTIONS,
   SLIPPAGE_OPTIONS,
 } from "./constants.js";
 import { createStringSelectMenu } from "./utils/createStringSelectMenu.js";
@@ -59,9 +61,6 @@ let prevMessageId;
 const getLyraSubgraphURI = (network, version) => {
   const SATSUMA_API_KEY = process.env.SATSUMA_API_KEY;
 
-  console.log(SATSUMA_API_KEY);
-  console.log(network);
-  console.log(version);
   if (!SATSUMA_API_KEY) {
     // Use SDK default
     return;
@@ -218,35 +217,35 @@ client.on("ready", async () => {
 
   // Function to initialize Lyra objects
   const initializeLyraObjects = async () => {
-    //const OP_PROVIDER = new StaticJsonRpcProvider(
-    //  process.env.OP_MAINNET_URL,
-    //  10
-    //);
+    const OP_PROVIDER = new StaticJsonRpcProvider(
+      process.env.OP_MAINNET_URL,
+      10
+    );
 
-    //console.log(getLyraSubgraphURI(Network.Optimism, Version.Newport));
+    const ARB_PROVIDER = new StaticJsonRpcProvider(
+      process.env.ARB_MAINNET_URL,
+      42161
+    );
 
-    //OP_LYRA = new Lyra({
-    //  provider: OP_PROVIDER,
-    //  apiUri: process.env.API_URL,
-    //  subgraphUri: getLyraSubgraphURI(Network.Optimism, Version.Newport),
-    //  govSubgraphUri: getLyraGovSubgraphURI(Network.Optimism),
-    //  version: Version.Newport,
-    //});
+    OP_LYRA = new Lyra({
+      provider: OP_PROVIDER,
+      apiUri: process.env.API_URL,
+      subgraphUri: getLyraSubgraphURI(Network.Optimism, Version.Newport),
+      govSubgraphUri: getLyraGovSubgraphURI(Network.Optimism),
+      version: Version.Newport,
+    });
 
-    OP_LYRA = new Lyra(Chain.Optimism);
-
-    //export const lyraOptimism = new Lyra({
-    //  provider: optimismProvider,
-    //  apiUri: process.env.REACT_APP_API_URL,
-    //  subgraphUri: getLyraSubgraphURI(Network.Optimism, Version.Newport),
-    //  govSubgraphUri: getLyraGovSubgraphURI(Network.Optimism),
-    //  version: Version.Newport,
-    //})
-
-    ARB_LYRA = new Lyra(Chain.Arbitrum);
+    ARB_LYRA = new Lyra({
+      provider: ARB_PROVIDER,
+      apiUri: process.env.REACT_APP_API_URL,
+      subgraphUri: getLyraSubgraphURI(Network.Arbitrum, Version.Newport),
+      govSubgraphUri: getLyraGovSubgraphURI(Network.Arbitrum),
+      version: Version.Newport,
+    });
     OP_MARKETS = await OP_LYRA.markets();
-    console.log(OP_LYRA);
+
     ARB_MARKETS = await ARB_LYRA.markets();
+    console.log(ARB_MARKETS);
   };
 
   // Initialize Lyra objects when the bot is ready
@@ -304,7 +303,7 @@ client.on("interactionCreate", async (interaction) => {
         const row = createStringSelectMenu(
           "market-select",
           "Select a market",
-          MARKET_OPTIONS
+          selectedChain === "OP" ? OP_MARKET_OPTIONS : ARB_MARKET_OPTIONS
         );
 
         const response = await interaction.editReply({
@@ -343,7 +342,7 @@ client.on("interactionCreate", async (interaction) => {
         const disabledRow = createStringSelectMenu(
           "market-select",
           selectedMarket,
-          MARKET_OPTIONS
+          selectedChain === "OP" ? OP_MARKET_OPTIONS : ARB_MARKET_OPTIONS
         );
 
         await interaction.webhook.editMessage(prevMessageId, {

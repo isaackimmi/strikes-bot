@@ -18,7 +18,7 @@ export const getAllStrikes = async (
     );
 
     return {
-      strikePrice: (strike.strike.strikePrice / 1e18).toFixed(0),
+      strikePrice: (strike.strike.strikePrice / 1e18).toFixed(2),
       breakEven: (strike.breakEven / 1e18).toFixed(2),
       toBreakEven: (strike.toBreakEven / 1e18).toFixed(2),
       pricePerOption: (strike.pricePerOption / 1e18).toFixed(2),
@@ -45,8 +45,6 @@ export const getAllStrikes = async (
   const sortedStrikes = formattedStrikes.sort(
     (a, b) => a.strikePrice - b.strikePrice
   );
-
-  //console.log(sortedStrikes);
 
   return sortedStrikes;
 };

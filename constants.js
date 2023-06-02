@@ -8,7 +8,25 @@ export const CHAIN_OPTIONS = [
   { label: "Arbitrum", value: "ARB" },
 ];
 
-export const MARKET_OPTIONS = [
+export const OP_MARKET_OPTIONS = [
+  {
+    label: "ETH",
+    value: "ETH",
+  },
+  {
+    label: "BTC",
+    value: "BTC",
+  },
+  {
+    label: "OP",
+    value: "OP",
+  },
+  {
+    label: "ARB",
+    value: "ARB",
+  },
+];
+export const ARB_MARKET_OPTIONS = [
   {
     label: "ETH",
     value: "ETH",
