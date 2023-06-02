@@ -217,20 +217,22 @@ client.on("ready", async () => {
 
   // Function to initialize Lyra objects
   const initializeLyraObjects = async () => {
-    const OP_PROVIDER = new StaticJsonRpcProvider(
-      process.env.OP_MAINNET_URL,
-      10
-    );
+    //const OP_PROVIDER = new StaticJsonRpcProvider(
+    //  process.env.OP_MAINNET_URL,
+    //  10
+    //);
 
     //console.log(getLyraSubgraphURI(Network.Optimism, Version.Newport));
 
-    OP_LYRA = new Lyra({
-      provider: OP_PROVIDER,
-      apiUri: process.env.API_URL,
-      subgraphUri: getLyraSubgraphURI(Network.Optimism, Version.Newport),
-      govSubgraphUri: getLyraGovSubgraphURI(Network.Optimism),
-      version: Version.Newport,
-    });
+    //OP_LYRA = new Lyra({
+    //  provider: OP_PROVIDER,
+    //  apiUri: process.env.API_URL,
+    //  subgraphUri: getLyraSubgraphURI(Network.Optimism, Version.Newport),
+    //  govSubgraphUri: getLyraGovSubgraphURI(Network.Optimism),
+    //  version: Version.Newport,
+    //});
+
+    OP_LYRA = new Lyra(Chain.Optimism);
 
     //export const lyraOptimism = new Lyra({
     //  provider: optimismProvider,
